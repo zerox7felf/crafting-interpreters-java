@@ -1,11 +1,8 @@
 .PHONY: run genAst
 
 genAst:
-	echo "Have you uncommented the right mainClass definition in build.gradle.kts? (y/N):"
-	if [ $(read) -n "y" ]; then
-		rm $(pwd)/app/src/main/java/jlox/Expr.java
-		gradle run --args=$(pwd)/app/src/main/java/jlox
-	fi
+	gradle run --args=$(shell pwd)/app/src/main/java/jlox
+	# Will also require you to uncomment the right mainClass in build.gradle.kts
 
 run:
 	rm -r /tmp/app

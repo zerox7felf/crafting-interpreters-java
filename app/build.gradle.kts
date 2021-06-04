@@ -26,8 +26,8 @@ dependencies {
 
 application {
     // Define the main class for the application.
-    //mainClass.set("jlox.App")
-    mainClass.set("jlox.tool.GenerateAst")
+    mainClass.set("jlox.App")
+    //mainClass.set("jlox.tool.GenerateAst")
 }
 
 val run by tasks.getting(JavaExec::class) {
