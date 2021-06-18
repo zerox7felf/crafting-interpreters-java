@@ -34,7 +34,7 @@ public class App {
         BufferedReader reader = new BufferedReader(input);
 
         while (true) {
-            System.out.print("> ");
+            System.out.print("lox> ");
             String line = reader.readLine();
             if (line == null) break;
             run(line);
@@ -45,14 +45,25 @@ public class App {
     private static void run(String source) {
         Lexer lexer = new Lexer(source);
         List<Token> tokens = lexer.scanTokens();
+        Parser parser = new Parser(tokens);
+        Expr expression = parser.parse();
 
-        for (Token token : tokens) {
-            System.out.println(token);
-        }
+        // Stop if syntax error
+        if (hadError) return;
+
+        System.out.println(new AstPrinter().print(expression));
     }
 
     static void error(int line, String message) {
         report(line, "", message);
+    }
+
+    static void error(Token token, String message) {
+        if (token.type == TokenType.EOF) {
+            report(token.line, " at end", message);
+        } else {
+            report(token.line, " at '" + token.lexeme + "'", message);
+        }
     }
 
     private static void report(int line, String where, String message) {

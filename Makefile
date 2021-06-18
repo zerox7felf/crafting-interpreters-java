@@ -7,7 +7,7 @@ genAst:
 run:
 	rm -r /tmp/app
 	mkdir /tmp/app/
-	gradle build
+	./gradlew build
 	cp app/build/distributions/app.zip /tmp/app/
 	unzip /tmp/app/app.zip -d /tmp/app/
 	/tmp/app/app/bin/app
