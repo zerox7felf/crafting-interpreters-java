@@ -9,8 +9,12 @@ import static jlox.TokenType.*;
 /**************************************************************
 * program       → declaration* EOF ;
 * declaration   → | varDecl
+*                 | funDecl
 *                 | statement ;
 * varDecl       → "var" IDENTIFIER ( "=" expression )? ";" ;
+* funDecl       → "fun" function ;
+* function      → IDENTIFIER "(" parameters? ")" block ;
+* parameters    → IDENTIFIER ( "," IDENTIFIER )* ;
 * statement     → | exprStmt
 *                 | ifStmt
 *                 | printStmt
@@ -87,6 +91,7 @@ class Parser {
         if (match(IF)) return ifStatement();
         if (match(WHILE)) return whileStatement();
         if (match(FOR)) return forStatement();
+        if (match(FUN)) return function("function");
         return expressionStatement();
     }
 
@@ -171,6 +176,24 @@ class Parser {
         }
 
         return body;
+    }
+
+    private Stmt.Function function(String kind) {
+        Token name = consume(IDENTIFIER, "Expected " + kind + "name.");
+        consume(LEFT_PAREN, "Expected '(' after " + kind + " name.");
+        List<Token> parameters = new ArrayList<>();
+        if (!check(RIGHT_PAREN)) {
+            do {
+                if (parameters.size() >= 255) {
+                    error(peek(), "Can't have more than 255 parameters");
+                }
+                parameters.add(consume(IDENTIFIER, "Expected parameter name."));
+            } while (match(COMMA));
+        }
+        consume(RIGHT_PAREN, "Expected ')' after parameters.");
+        consume(LEFT_BRACE, "Expected '{' before " + kind + " body.");
+        List<Stmt> body = block();
+        return new Stmt.Function(name, parameters, body);
     }
 
     private List<Stmt> block() {
