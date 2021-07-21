@@ -1,0 +1,8 @@
+var start = 0;
+var tick = true;
+while (true) {
+    start = clock();
+    while (clock() < start + 0.5) {}
+    print tick ? "tick" : "tock";
+    tick = !tick;
+}

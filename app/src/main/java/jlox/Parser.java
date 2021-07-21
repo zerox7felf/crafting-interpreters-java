@@ -2,6 +2,7 @@ package jlox;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import static jlox.TokenType.*;
 
@@ -11,21 +12,31 @@ import static jlox.TokenType.*;
 *                 | statement ;
 * varDecl       → "var" IDENTIFIER ( "=" expression )? ";" ;
 * statement     → | exprStmt
-*                 | printStm
+*                 | ifStmt
+*                 | printStmt
+*                 | whileStmt
+*                 | forStmt
 *                 | block ;
 * exprStmt      → expression ";" ;
+* ifStmt        → "if" "(" expression ")" statement ( "else" statement )? ;
 * printStmt     → "print" expression ";" ;
+* whileStmt     → "while" "(" expression ")" statement ;
+* forStmt       → "for" "(" ( varDecl | exprStmt | ";" ) expression? ";" expression? ")" statement ;
 * block         → "{" declaration* "}" ;
 * expression    → assignment ;
 * assignment    → | IDENTIFIER "=" assignment
 *                 | ternary ;
-* ternary       → equality ( "?" expression ":" expression )? ;
+* ternary       → logic_or ( "?" expression ":" expression )? ;
+* logic_or      → logic_and ( "or" logic_and )* ;
+* logic_and     → equality ( "or" equality )* ;
 * equality      → comparison ( ( "!=" | "==" ) comparison )* ;
 * comparison    → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 * term          → factor ( ( "-" | "+" ) factor )* ;
 * factor        → unary ( ( "/" | "*" ) unary )* ;
 * unary         → | ( "!" | "-" ) unary
-*                 | primary ;
+*                 | call ;
+* call          → primary ( "(" arguments? ")" )* ;
+* arguments     → expression ( "," expression )* ;
 * primary       → | NUMBER | STRING | "true" | "false" | "nil"
 *                 | "(" expression ")" | IDENTIFIER ;
 ***************************************************************/
@@ -73,6 +84,9 @@ class Parser {
     private Stmt statement() {
         if (match(PRINT)) return printStatement();
         if (match(LEFT_BRACE)) return new Stmt.Block(block());
+        if (match(IF)) return ifStatement();
+        if (match(WHILE)) return whileStatement();
+        if (match(FOR)) return forStatement();
         return expressionStatement();
     }
 
@@ -86,6 +100,77 @@ class Parser {
         Expr expr = expression();
         consume(SEMICOLON, "Expected ';' after expression.");
         return new Stmt.Expression(expr);
+    }
+
+    private Stmt ifStatement() {
+        consume(LEFT_PAREN, "Expected '(' after if.");
+        Expr condition = expression();
+        consume(RIGHT_PAREN, "Expected ')' after condition.");
+
+        Stmt thenBranch = statement();
+        Stmt elseBranch = null;
+        if (match(ELSE)) {
+            elseBranch = statement();
+        }
+
+        return new Stmt.If(condition, thenBranch, elseBranch);
+    }
+
+    private Stmt whileStatement() {
+        consume(LEFT_PAREN, "Expected '(' after while.");
+        Expr condition = expression();
+        consume(RIGHT_PAREN, "Expected ')' after condition.");
+        Stmt body = statement();
+
+        return new Stmt.While(condition, body);
+    }
+
+    private Stmt forStatement() {
+        consume(LEFT_PAREN, "Expected ')' after for.");
+
+        Stmt initializer;
+        if (match(SEMICOLON)) {
+            initializer = null; // initializer omitted
+        } else if (match(VAR)) {
+            initializer = varDeclaration();
+        } else {
+            initializer = expressionStatement();
+        }
+
+        Expr condition = null;
+        if (!check(SEMICOLON)) {
+            condition = expression(); // condition *not* omitted
+        }
+        consume(SEMICOLON, "Expected ';' after condition.");
+
+        Expr increment = null;
+        if (!check(RIGHT_PAREN)) {
+            increment = expression();
+        }
+        consume(RIGHT_PAREN, "Expected ')' after for clauses.");
+
+        Stmt body = statement();
+
+        if (increment != null) {
+            // Add increment expression to the end of the block
+            body = new Stmt.Block(
+                Arrays.asList(
+                    body,
+                    new Stmt.Expression(increment)
+                )
+            );
+        }
+
+        // Slap the body and the condition statement together in a while statement
+        if (condition == null) condition =  new Expr.Literal(true);
+        body = new Stmt.While(condition, body);
+
+        // Add the initializer before the while body
+        if (initializer != null) {
+            body = new Stmt.Block(Arrays.asList(initializer, body));
+        }
+
+        return body;
     }
 
     private List<Stmt> block() {
@@ -121,7 +206,7 @@ class Parser {
     }
 
     private Expr ternary() {
-        Expr expr = equality();
+        Expr expr = or();
 
         if (match(QUEST)) {
             Expr truePath = expression();
@@ -131,6 +216,27 @@ class Parser {
         }
 
         return expr;
+    }
+
+    private Expr or() {
+        Expr expr = and();
+        while (match(OR)) {
+            Token operator = previous();
+            Expr right = and();
+            expr = new Expr.Logical(expr, operator, right);
+        }
+        return expr;
+    }
+
+    private Expr and() {
+        Expr expr = equality();
+        while (match(AND)) {
+            Token operator = previous();
+            Expr right = equality();
+            expr = new Expr.Logical(expr, operator, right);
+        }
+        return expr;
+        
     }
 
 	private Expr equality() {
@@ -188,7 +294,39 @@ class Parser {
             return new Expr.Unary(operator, right);
         }
 
-        return primary();
+        return call();
+    }
+
+    // Treat calls like infix operation.
+    // Left side is primary, right side is arguments to func. call, object fields, etc.
+    private Expr call() {
+        Expr expr = primary();
+
+        while (true) {
+            if (match(LEFT_PAREN)) {
+                expr = finishCall(expr);
+            } else {
+                break;
+            }
+        }
+
+        return expr;
+    }
+
+    private Expr finishCall(Expr callee) {
+        List<Expr> arguments = new ArrayList<>();
+        if (!check(RIGHT_PAREN)) {
+            do {
+                if (arguments.size() >= 255) {
+                    error(peek(), "Can't have more than 255 arguments.");
+                }
+                arguments.add(expression());
+            } while (match(COMMA));
+        }
+
+        // Save parenthesis token for when we want to mark errors originating in a function call
+        Token paren = consume(RIGHT_PAREN, "Expected ')' after function call arguments.");
+        return new Expr.Call(callee, paren, arguments);
     }
 
     private Expr primary() {
