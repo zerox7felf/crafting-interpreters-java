@@ -12,18 +12,20 @@ import static jlox.TokenType.*;
 *                 | funDecl
 *                 | statement ;
 * varDecl       → "var" IDENTIFIER ( "=" expression )? ";" ;
-* funDecl       → "fun" function ;
-* function      → IDENTIFIER "(" parameters? ")" block ;
+* funDecl       → "fun" IDENTIFIER funParams ;
+* funParams     → "(" parameters? ")" block ;
 * parameters    → IDENTIFIER ( "," IDENTIFIER )* ;
 * statement     → | exprStmt
 *                 | ifStmt
 *                 | printStmt
+*                 | returnStmt
 *                 | whileStmt
 *                 | forStmt
 *                 | block ;
 * exprStmt      → expression ";" ;
 * ifStmt        → "if" "(" expression ")" statement ( "else" statement )? ;
 * printStmt     → "print" expression ";" ;
+* returnStmt    → "return" expression? ";" ;
 * whileStmt     → "while" "(" expression ")" statement ;
 * forStmt       → "for" "(" ( varDecl | exprStmt | ";" ) expression? ";" expression? ")" statement ;
 * block         → "{" declaration* "}" ;
@@ -32,7 +34,7 @@ import static jlox.TokenType.*;
 *                 | ternary ;
 * ternary       → logic_or ( "?" expression ":" expression )? ;
 * logic_or      → logic_and ( "or" logic_and )* ;
-* logic_and     → equality ( "or" equality )* ;
+* logic_and     → equality ( "and" equality )* ;
 * equality      → comparison ( ( "!=" | "==" ) comparison )* ;
 * comparison    → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 * term          → factor ( ( "-" | "+" ) factor )* ;
@@ -42,7 +44,8 @@ import static jlox.TokenType.*;
 * call          → primary ( "(" arguments? ")" )* ;
 * arguments     → expression ( "," expression )* ;
 * primary       → | NUMBER | STRING | "true" | "false" | "nil"
-*                 | "(" expression ")" | IDENTIFIER ;
+*                 | "(" expression ")" | IDENTIFIER | lambda ;
+* lambda        → "fun" funParams ;
 ***************************************************************/
 
 class Parser {
@@ -87,6 +90,7 @@ class Parser {
 
     private Stmt statement() {
         if (match(PRINT)) return printStatement();
+        if (match(RETURN)) return returnStatement();
         if (match(LEFT_BRACE)) return new Stmt.Block(block());
         if (match(IF)) return ifStatement();
         if (match(WHILE)) return whileStatement();
@@ -99,6 +103,17 @@ class Parser {
         Expr value = expression();
         consume(SEMICOLON, "Expected ';' after value.");
         return new Stmt.Print(value);
+    }
+
+    private Stmt returnStatement() {
+        Token keyword = previous();
+        Expr value = null;
+        if (!check(SEMICOLON)) {
+            value = expression();
+        }
+
+        consume(SEMICOLON, "Expected ';' after return value.");
+        return new Stmt.Return(keyword, value);
     }
 
     private Stmt expressionStatement() {
@@ -370,6 +385,7 @@ class Parser {
         if (match(IDENTIFIER)) {
             return new Expr.Variable(previous());
         }
+
 
         throw error(peek(), "Expected expression.");
     }

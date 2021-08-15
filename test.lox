@@ -1,8 +1,10 @@
-var start = 0;
-var tick = true;
-while (true) {
-    start = clock();
-    while (clock() < start + 0.5) {}
-    print tick ? "tick" : "tock";
-    tick = !tick;
+var a = 9;
+
+fun test(a) {
+    var a = 12;
+    print a;
 }
+
+test(10);
+
+print a;

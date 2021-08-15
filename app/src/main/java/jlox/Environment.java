@@ -26,6 +26,7 @@ class Environment {
     }
 
     void define(String name, Object value) {
+        // TODO: warn when overriding previously defined var
         values.put(name, value);
     }
 
