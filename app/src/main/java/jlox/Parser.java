@@ -95,7 +95,10 @@ class Parser {
         if (match(IF)) return ifStatement();
         if (match(WHILE)) return whileStatement();
         if (match(FOR)) return forStatement();
-        if (match(FUN)) return function("function");
+        if (check(FUN) && check2(IDENTIFIER)) {
+            advance(); // Eat the FUN, let function eat the ID. If we were to match FUN, lambdas wouldn't be found later.
+            return function("function");
+        }
         return expressionStatement();
     }
 
@@ -386,6 +389,22 @@ class Parser {
             return new Expr.Variable(previous());
         }
 
+        if (match(FUN)) {
+            consume(LEFT_PAREN, "Expected '(' after lambda 'fun' token.");
+            List<Token> parameters = new ArrayList<>();
+            if (!check(RIGHT_PAREN)) {
+                do {
+                    if (parameters.size() >= 255) {
+                        error(peek(), "Can't have more than 255 parameters");
+                    }
+                    parameters.add(consume(IDENTIFIER, "Expected parameter name."));
+                } while (match(COMMA));
+            }
+            consume(RIGHT_PAREN, "Expected ')' after parameters.");
+            consume(LEFT_BRACE, "Expected '{' before lambda body.");
+            List<Stmt> body = block();
+            return new Expr.Lambda(parameters, body);
+        }
 
         throw error(peek(), "Expected expression.");
     }
@@ -412,6 +431,11 @@ class Parser {
         return peek().type == type;
     }
 
+    private boolean check2(TokenType type) {
+        if (isAtEnd()) return false;
+        return peek2().type == type;
+    }
+
     private Token advance() {
         if (!isAtEnd()) current++;
         return previous();
@@ -423,6 +447,11 @@ class Parser {
 
     private Token peek() {
         return tokens.get(current);
+    }
+
+    private Token peek2() {
+        if (isAtEnd()) return peek(); // Will return EOF if we can't peek 2 steps ahead
+        else return tokens.get(current + 1);
     }
 
     private Token previous() {

@@ -171,6 +171,12 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return value;
     }
 
+    @Override
+    public Object visitLambdaExpr(Expr.Lambda expr) {
+        Object value = new LoxFunction(expr, environment);
+        return value;
+    }
+
     private void checkNumberOperand(Token operator, Object operand) {
         if (operand instanceof Double) return;
         throw new RuntimeError(operator, "Operand must be a number.");
