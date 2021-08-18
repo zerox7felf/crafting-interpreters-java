@@ -1,21 +1,82 @@
-fun thrice(fn) {
-    for (var i = 1; i <= 3; i = i + 1) {
-        fn(i);
+fun list_new(item) {
+    return fun(i) {
+        if (i == 0) return item;
+    };
+}
+
+fun list_add_front(list, item) {
+    if (list == nil) return list_new(item);
+    return fun(i) {
+        if (i == 0) return item;
+        else return list(i-1);
+    };
+}
+
+fun list_range(length) {
+    if (length == 1)
+        return list_new(1);
+    else
+        return list_add_front(
+            list_range(length-1),
+            length
+        );
+}
+
+fun list_length(list) {
+    var length = 0;
+    while (list(length) != nil) {
+        length = length + 1;
+    }
+    return length;
+}
+
+fun list_for_each(list, fn) {
+    for (var i = 0; i < list_length(list); i = i + 1) {
+        fn(list(i));
     }
 }
 
-thrice(fun (a) {
-    print a;
-});
+fun list_map(list, fn) {
+    var new_list;
+    for (
+        var i = list_length(list) - 1;
+        i >= 0;
+        i = i - 1
+    ) {
+        new_list = list_add_front(
+            new_list,
+            fn(list(i))
+        );
+    }
+    return new_list;
+}
 
-// Lol currying.
-var add = fun (a) {
-    return fun (b) {
-        print a + b;
-    };
-};
+fun list_print(list) {
+    list_for_each(list, fun(item){print item;});
+}
 
-add(1)(2);
+var my_list = list_range(15);
+list_print(my_list);
+list_print(list_map(my_list, fun(it){return it*2;}));
 
-var add2 = add(2);
-add2(4);
+class hejsan {
+    init(type) {
+        if (type == 0) {
+            print "hello from init!";
+            return;
+        } else {
+            print "this is bad syntax according to...";
+        }
+        print "Structured programming.";
+    }
+
+    foobar(sak) {
+        print sak;
+        print this.sak;
+    }
+}
+
+var oj = hejsan(1);
+oj.sak = 99;
+oj.foobar(12);
+oj.foobar(13);

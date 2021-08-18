@@ -1,7 +1,7 @@
 package jlox;
 
-class AstPrinter implements Expr.Visitor<String> {
-    String print(Expr expr) {
+class AstPrinter { //implements Expr.Visitor<String> {
+    /*String print(Expr expr) {
         return expr.accept(this);
     }
 
@@ -31,6 +31,11 @@ class AstPrinter implements Expr.Visitor<String> {
         Expr[] exprs = expr.arguments.toArray(new Expr[expr.arguments.size() + 1]);
         exprs[expr.arguments.size()] = expr.callee;
         return parenthesize("call", exprs);
+    }
+
+    @Override
+    public String visitGetExpr(Expr.Get expr) {
+        return "get";
     }
 
     @Override
@@ -84,5 +89,5 @@ class AstPrinter implements Expr.Visitor<String> {
         );
         
         System.out.println(new AstPrinter().print(expression));
-    }
+    }*/
 }

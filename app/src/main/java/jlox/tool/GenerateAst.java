@@ -20,6 +20,9 @@ public class GenerateAst {
             "Literal    : Object value",
             "Unary      : Token operator, Expr right",
             "Call       : Expr callee, Token paren, List<Expr> arguments",
+            "Get        : Expr object, Token name",
+            "Set        : Expr object, Token name, Expr value",
+            "This       : Token keyword",
             "Variable   : Token name",
             "Assign     : Token name, Expr value",
             "Lambda     : List<Token> params, List<Stmt> body"
@@ -32,7 +35,8 @@ public class GenerateAst {
             "Block      : List<Stmt> statements",
             "If         : Expr condition, Stmt thenBranch, Stmt elseBranch",
             "While      : Expr condition, Stmt body",
-            "Function   : Token name, List<Token> params, List<Stmt> body"
+            "Function   : Token name, List<Token> params, List<Stmt> body",
+            "Class      : Token name, List<Stmt.Function> methods"
         ));
     }
 

@@ -9,9 +9,12 @@ import static jlox.TokenType.*;
 /**************************************************************
 * program       → declaration* EOF ;
 * declaration   → | varDecl
+*                 | classDecl
 *                 | funDecl
 *                 | statement ;
 * varDecl       → "var" IDENTIFIER ( "=" expression )? ";" ;
+* classDecl     → "class" IDENTIFIER "{" methodDecl* "}" ;
+* methodDecl    → IDENTIFIER funParams ;
 * funDecl       → "fun" IDENTIFIER funParams ;
 * funParams     → "(" parameters? ")" block ;
 * parameters    → IDENTIFIER ( "," IDENTIFIER )* ;
@@ -30,7 +33,7 @@ import static jlox.TokenType.*;
 * forStmt       → "for" "(" ( varDecl | exprStmt | ";" ) expression? ";" expression? ")" statement ;
 * block         → "{" declaration* "}" ;
 * expression    → assignment ;
-* assignment    → | IDENTIFIER "=" assignment
+* assignment    → | ( call "." )? IDENTIFIER "=" assignment
 *                 | ternary ;
 * ternary       → logic_or ( "?" expression ":" expression )? ;
 * logic_or      → logic_and ( "or" logic_and )* ;
@@ -41,7 +44,7 @@ import static jlox.TokenType.*;
 * factor        → unary ( ( "/" | "*" ) unary )* ;
 * unary         → | ( "!" | "-" ) unary
 *                 | call ;
-* call          → primary ( "(" arguments? ")" )* ;
+* call          → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 * arguments     → expression ( "," expression )* ;
 * primary       → | NUMBER | STRING | "true" | "false" | "nil"
 *                 | "(" expression ")" | IDENTIFIER | lambda ;
@@ -70,11 +73,31 @@ class Parser {
     private Stmt declaration() {
         try {
             if (match(VAR)) return varDeclaration();
+            if (match(CLASS)) return classDeclaration();
+            if (check(FUN) && check2(IDENTIFIER)) {
+                advance();  // Eat the FUN, let function eat the ID.
+                            // If we were to match FUN, lambdas wouldn't
+                            // be found later.
+                return function("function");
+            }
             return statement();
         } catch (ParseError error) {
             syncronize();
             return null;
         }
+    }
+
+    private Stmt classDeclaration() {
+        Token name = consume(IDENTIFIER, "Expected class name.");
+        consume(LEFT_BRACE, "Expected '{' before class body.");
+
+        List<Stmt.Function> methods = new ArrayList<>();
+        while (!check(RIGHT_BRACE) && !isAtEnd()) {
+            methods.add(function("method"));
+        }
+
+        consume(RIGHT_BRACE, "Expected '}' after class body.");
+        return new Stmt.Class(name, methods);
     }
 
     private Stmt varDeclaration() {
@@ -89,16 +112,12 @@ class Parser {
     }
 
     private Stmt statement() {
-        if (match(PRINT)) return printStatement();
-        if (match(RETURN)) return returnStatement();
+        if (match(PRINT     )) return printStatement();
+        if (match(RETURN    )) return returnStatement();
         if (match(LEFT_BRACE)) return new Stmt.Block(block());
-        if (match(IF)) return ifStatement();
-        if (match(WHILE)) return whileStatement();
-        if (match(FOR)) return forStatement();
-        if (check(FUN) && check2(IDENTIFIER)) {
-            advance(); // Eat the FUN, let function eat the ID. If we were to match FUN, lambdas wouldn't be found later.
-            return function("function");
-        }
+        if (match(IF        )) return ifStatement();
+        if (match(WHILE     )) return whileStatement();
+        if (match(FOR       )) return forStatement();
         return expressionStatement();
     }
 
@@ -238,6 +257,9 @@ class Parser {
             if (expr instanceof Expr.Variable) {
                 Token name = ((Expr.Variable)expr).name;
                 return new Expr.Assign(name, value);
+            } else if (expr instanceof Expr.Get) {
+                Expr.Get get = (Expr.Get)expr;
+                return new Expr.Set(get.object, get.name, value);
             }
 
             error(equals, "Invalid assignment target");
@@ -346,6 +368,9 @@ class Parser {
         while (true) {
             if (match(LEFT_PAREN)) {
                 expr = finishCall(expr);
+            } else if (match(DOT)) {
+                Token name = consume(IDENTIFIER, "Expected property name after '.'.");
+                expr = new Expr.Get(expr, name);
             } else {
                 break;
             }
@@ -384,6 +409,8 @@ class Parser {
             consume(RIGHT_PAREN, "Expected ')' after expression.");
             return new Expr.Grouping(expr);
         }
+
+        if (match(THIS)) return new Expr.This(previous());
 
         if (match(IDENTIFIER)) {
             return new Expr.Variable(previous());

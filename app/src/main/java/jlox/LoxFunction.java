@@ -10,19 +10,30 @@ class LoxFunction implements LoxCallable {
     private final List<Token> params;
     private final List<Stmt> body;
     private final Environment closure;
+    private final boolean isInitializer;
 
-    LoxFunction(Expr.Lambda declaration, Environment closure) {
+    LoxFunction(Expr.Lambda declaration, Environment closure, boolean isInitializer) {
         this.name = "lambda";
         this.params = declaration.params;
         this.body = declaration.body;
         this.closure = closure;
+        this.isInitializer = isInitializer;
     }
 
-    LoxFunction(Stmt.Function declaration, Environment closure) {
+    LoxFunction(Stmt.Function declaration, Environment closure, boolean isInitializer) {
         this.name = declaration.name.lexeme;
         this.params = declaration.params;
         this.body = declaration.body;
         this.closure = closure;
+        this.isInitializer = isInitializer;
+    }
+
+    LoxFunction(String name, List<Token> params, List<Stmt> body, Environment closure, boolean isInitializer) {
+        this.name = name;
+        this.params = params;
+        this.body = body;
+        this.closure = closure;
+        this.isInitializer = isInitializer;
     }
 
     @Override
@@ -36,9 +47,20 @@ class LoxFunction implements LoxCallable {
         try {
             interpreter.executeBlock(body, environment);
         } catch (Return returnValue) {
-            return returnValue.value;
+            if (isInitializer)
+                return closure.getAt(0, "this");
+            else
+                return returnValue.value;
         }
+
+        if (isInitializer) return closure.getAt(0, "this");
         return null;
+    }
+
+    LoxFunction bind(LoxInstance instance) {
+        Environment environment = new Environment(closure);
+        environment.define("this", instance);
+        return new LoxFunction(name, params, body, environment, isInitializer);
     }
 
     @Override
