@@ -59,24 +59,22 @@ var my_list = list_range(15);
 list_print(my_list);
 list_print(list_map(my_list, fun(it){return it*2;}));
 
-class hejsan {
-    init(type) {
-        if (type == 0) {
-            print "hello from init!";
-            return;
-        } else {
-            print "this is bad syntax according to...";
-        }
-        print "Structured programming.";
-    }
-
-    foobar(sak) {
-        print sak;
-        print this.sak;
-    }
+class A {
+  method() {
+    print "A method";
+  }
 }
 
-var oj = hejsan(1);
-oj.sak = 99;
-oj.foobar(12);
-oj.foobar(13);
+class B < A {
+  method() {
+    print "B method";
+  }
+
+  test() {
+    super.method();
+  }
+}
+
+class C < B {}
+
+C().test();

@@ -18,6 +18,7 @@ abstract class Expr {
         R visitVariableExpr(Variable expr);
         R visitAssignExpr(Assign expr);
         R visitLambdaExpr(Lambda expr);
+        R visitSuperExpr(Super expr);
     }
 
     static class Ternary extends Expr {
@@ -203,6 +204,20 @@ abstract class Expr {
 
         final List<Token> params;
         final List<Stmt> body;
+    }
+    static class Super extends Expr {
+        Super(Token keyword, Token method) {
+            this.keyword = keyword;
+            this.method = method;
+        }
+        
+        @Override
+        <R> R accept(Visitor<R> visitor) {
+            return visitor.visitSuperExpr(this);
+        }
+
+        final Token keyword;
+        final Token method;
     }
 
     abstract <R> R accept(Visitor<R> visitor);

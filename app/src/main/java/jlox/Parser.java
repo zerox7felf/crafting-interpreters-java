@@ -13,7 +13,7 @@ import static jlox.TokenType.*;
 *                 | funDecl
 *                 | statement ;
 * varDecl       → "var" IDENTIFIER ( "=" expression )? ";" ;
-* classDecl     → "class" IDENTIFIER "{" methodDecl* "}" ;
+* classDecl     → "class" IDENTIFIER ( "<" IDENTIFIER )? "{" methodDecl* "}" ;
 * methodDecl    → IDENTIFIER funParams ;
 * funDecl       → "fun" IDENTIFIER funParams ;
 * funParams     → "(" parameters? ")" block ;
@@ -47,7 +47,8 @@ import static jlox.TokenType.*;
 * call          → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 * arguments     → expression ( "," expression )* ;
 * primary       → | NUMBER | STRING | "true" | "false" | "nil"
-*                 | "(" expression ")" | IDENTIFIER | lambda ;
+*                 | "(" expression ")" | IDENTIFIER | lambda 
+*                 | "super" "." IDENTIFIER ;
 * lambda        → "fun" funParams ;
 ***************************************************************/
 
@@ -89,6 +90,13 @@ class Parser {
 
     private Stmt classDeclaration() {
         Token name = consume(IDENTIFIER, "Expected class name.");
+
+        Expr.Variable superclass = null;
+        if (match(LESS)) {
+            consume(IDENTIFIER, "Expected superclass name.");
+            superclass = new Expr.Variable(previous());
+        }
+
         consume(LEFT_BRACE, "Expected '{' before class body.");
 
         List<Stmt.Function> methods = new ArrayList<>();
@@ -97,7 +105,7 @@ class Parser {
         }
 
         consume(RIGHT_BRACE, "Expected '}' after class body.");
-        return new Stmt.Class(name, methods);
+        return new Stmt.Class(name, superclass, methods);
     }
 
     private Stmt varDeclaration() {
@@ -399,21 +407,24 @@ class Parser {
         if (match(FALSE)) return new Expr.Literal(false);
         if (match(TRUE )) return new Expr.Literal(true );
         if (match(NIL  )) return new Expr.Literal(null );
+        if (match(THIS )) return new Expr.This(previous());
 
-        if (match(STRING, NUMBER)) {
+        if (match(STRING, NUMBER))
             return new Expr.Literal(previous().literal);
+        if (match(IDENTIFIER))
+            return new Expr.Variable(previous());
+
+        if (match(SUPER)){
+            Token keyword = previous();
+            consume(DOT, "Expected '.' after 'super'.");
+            Token method = consume(IDENTIFIER, "Expected method name.");
+            return new Expr.Super(keyword, method);
         }
 
         if (match(LEFT_PAREN)) {
             Expr expr = expression();
             consume(RIGHT_PAREN, "Expected ')' after expression.");
             return new Expr.Grouping(expr);
-        }
-
-        if (match(THIS)) return new Expr.This(previous());
-
-        if (match(IDENTIFIER)) {
-            return new Expr.Variable(previous());
         }
 
         if (match(FUN)) {
